@@ -1,0 +1,73 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: sobitas-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sobitas
+      MYSQL_USER: sobitas_user
+      MYSQL_PASSWORD: secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s  # Allow DB init time
+    networks:
+      - sobitas-network
+      
+  app:
+    build:
+      context: ./protien_admin_ancien
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    container_name: sobitas-app
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes:
+      - ./protien_admin_ancien:/var/www/html:rw  # Laravel code (rw for dev; use :ro for prod security)
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=sobitas
+      - DB_USERNAME=sobitas_user
+      - DB_PASSWORD=secret
+    command: php artisan serve --host=0.0.0.0 --port=8000  # Override to run HTTP server for proxy
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000 || exit 1"]  # Use  for reliability (add route if needed)
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Give more time for composer install on first run
+    networks:
+      - sobitas-network
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend  # Builds Angular + Nginx
+    container_name: sobitas-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro  # Your API proxy conf (ro for security)
+    networks:
+      - sobitas-network
+
+volumes:
+  db_data:
+
+networks:
+  sobitas-network:
+    driver: bridge

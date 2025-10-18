@@ -1,0 +1,75 @@
+# Dockerfile.backend
+
+# Base image: PHP CLI for Laravel (no FPM, lightweight)
+FROM php:8.3-cli-alpine
+
+# Update package index and install CA certificates for secure downloads
+RUN apk update --no-cache \
+    && apk add --no-cache ca-certificates curl netcat-openbsd \
+    && update-ca-certificates \
+    && sed -i -e 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+    && rm -rf /var/cache/apk/*
+
+# Install runtime libs first (prevents extension load errors)
+RUN apk add --no-cache \
+    libpng \
+    libjpeg-turbo \
+    libzip \
+    oniguruma
+
+# Install system dependencies + PHP extensions needed by Laravel
+RUN apk add --no-cache \
+    git \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    libzip-dev \
+    oniguruma-dev \
+    zip \
+    unzip \
+    bash \
+    && docker-php-ext-configure gd --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_mysql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+    && rm -rf /var/cache/apk/* \
+    && apk del --no-cache libpng-dev libjpeg-turbo-dev libzip-dev oniguruma-dev  # Clean up dev packages
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Set working directory
+WORKDIR /var/www/html
+
+# Copy only composer files first for better caching
+COPY composer.json composer.lock ./
+
+# Install Laravel dependencies (production optimized)
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction \
+    && rm -rf /root/.composer/cache
+
+# Copy the rest of the application files
+COPY . .
+
+# Set permissions
+RUN chmod -R 755 storage bootstrap/cache \
+    && chown -R www-data:www-data storage bootstrap/cache
+
+# Copy entrypoint script
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Expose Laravel default port
+EXPOSE 8000
+
+# Healthcheck to ping Laravel server (use root for simplicity; add /health route if preferred)
+#HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+#    CMD curl -f http://localhost:8000 || exit 1
+
+# Use entrypoint
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

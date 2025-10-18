@@ -1,0 +1,23 @@
+<section class="slider_section s_section_two">
+  <div class="slider_area slider_carousel owl-carousel">
+    <ng-container *ngFor="let slide of data">
+      <div class="single_slider d-flex align-items-center"  style="background-size: cover; height:560px;"
+        [style.background-image]="'url('+ slide.cover+ ')'">
+        <div class="container">
+          <div class="row">
+            <div class="col-12">
+              <div class="slider_content" [style.textAlign]="slide.position">
+                <h1 [style.color]="slide.text_color" [style.font-weight]="slide.text_weight">{{slide.designation_fr}}
+                </h1>
+                <p [style.color]="slide.text_color" [style.font-weight]="slide.text_weight">{{slide.description_fr}}</p>
+                <a *ngIf="slide.btn_text_fr" class="button" target="_blank"
+                  href="{{slide.btn_link}}">{{slide.btn_text_fr}} <i class="fa fa-angle-double-right"
+                    aria-hidden="true"></i></a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+</section>

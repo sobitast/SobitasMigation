@@ -1,0 +1,2 @@
+<textarea class="form-control easymde" name="<?php echo e($row->field); ?>" id="markdown<?php echo e($row->field); ?>"><?php echo e(old($row->field, $dataTypeContent->{$row->field} ?? '')); ?></textarea>
+<?php /**PATH C:\wamp64\www\sobitas\protien_admin_ancien\vendor\tcg\voyager\resources\views\formfields\markdown_editor.blade.php ENDPATH**/ ?>

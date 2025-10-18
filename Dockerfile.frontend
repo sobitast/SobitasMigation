@@ -1,0 +1,27 @@
+# Stage 1: Build Angular app
+FROM node:20-alpine AS angular-build
+WORKDIR /app
+
+# Copy only package files to leverage Docker cache
+COPY sobitas-front/package*.json ./
+
+# Install dependencies (cached if package.json doesn't change)
+RUN npm install
+
+# Copy the rest of the Angular source code
+COPY sobitas-front/ ./
+
+# Build Angular for production
+RUN npx ng build --configuration production
+
+# Stage 2: Serve via Nginx
+FROM nginx:alpine AS sobitas
+# Copy built Angular app from the previous stage
+COPY --from=angular-build /app/dist/ng16/browser/ /usr/share/nginx/html/
+
+# Copy custom Nginx configuration
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
